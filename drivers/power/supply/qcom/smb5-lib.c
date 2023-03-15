@@ -9324,7 +9324,7 @@ set_eb_done:
 
 #define WEAK_CHRG_THRSH 450
 #define TURBO_CHRG_THRSH 2500
-void mmi_chrg_rate_check_smb5(struct smb_charger *chip)
+void mmi_chrg_rate_check_local(struct smb_charger *chip)
 {
 	int rc;
 	union power_supply_propval val;
