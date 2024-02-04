@@ -10,13 +10,30 @@ RST='\033[0m'
 ORIGIN_DIR=$(pwd)
 TOOLCHAIN=$ORIGIN_DIR/build-shit
 IMAGE=$ORIGIN_DIR/out/arch/arm64/boot/Image.gz
-DEVICE=hanoip
+DEVICE=odessa
 CONFIG="${DEVICE}_defconfig"
+FP_MODEL="$*"
+EGIS+=(
+    ./scripts/config \
+        --file "$ORIGIN_DIR"/out/.config \
+        -d FINGERPRINT_FPC_TEE_MMI \
+        -e CONFIG_FINGERPRINT_EGISTEC_FPS_MMI
+)
+MAKE+=(
+    -j$(($(nproc)+1)) \
+        O=out \
+        CROSS_COMPILE=aarch64-elf- \
+        CROSS_COMPILE_ARM32=arm-eabi- \
+        HOSTCC=gcc \
+        HOSTCXX=aarch64-elf-g++ \
+        CC=aarch64-elf-gcc \
+        LD=ld.lld
+)
 
 # export environment variables
 export_env_vars() {
-    export KBUILD_BUILD_USER=Const
-    export KBUILD_BUILD_HOST=Coccinelle
+    export KBUILD_BUILD_USER=Vishal
+    export KBUILD_BUILD_HOST=Panda
     export ARCH=arm64
     
     # CCACHE
@@ -69,14 +86,21 @@ build_kernel_image() {
     read -p "Write the Kernel version: " KV
     echo -e "${YELLOW}"
     script_echo "Building CosmicFresh Kernel For $DEVICE"
-    make -j$(($(nproc)+1)) O=out ARCH=arm64 LOCALVERSION="—CosmicFresh-$DEVICE-R$KV" $CONFIG 2>&1 | sed 's/^/     /'
-    make -j$(($(nproc)+1)) LOCALVERSION="—CosmicFresh-$DEVICE-R$KV" \
-    ARCH=arm64 \
-    CC=clang \
-    CLANG_TRIPLE=aarch64-linux-gnu- \
-    CROSS_COMPILE=aarch64-linux-android- \
-    CROSS_COMPILE_ARM32=arm-linux-androideabi- \
-    O=out | sed 's/^/     /'
+
+    make "${MAKE[@]}" LOCALVERSION="—CosmicFresh-R$KV" $CONFIG 2>&1 | sed 's/^/     /'
+
+    echo -e "${GRN}"
+    if [ "$FP_MODEL" = "EGIS" ]; then
+        "${EGIS[@]}"
+    else
+        FP_MODEL="FPC"
+    fi
+    echo -e "${YELLOW}"
+
+    make "${MAKE[@]}" LOCALVERSION="—CosmicFresh-R$KV" 2>&1 | sed 's/^/     /'
+
+    make "${MAKE[@]}" dtbs dtbo.img 2>&1 | sed 's/^/     /'
+
     SUCCESS=$?
     echo -e "${RST}"
     
@@ -110,7 +134,7 @@ build_flashable_zip() {
     script_echo "I: Building kernel image..."
     echo -e "${GRN}"
     cp "$ORIGIN_DIR"/out/arch/arm64/boot/{Image.gz,dtbo.img} CosmicFresh/
-    cp "$ORIGIN_DIR"/out/arch/arm64/boot/dts/qcom/sdmmagpie-hanoi-base.dtb CosmicFresh/dtb
+    cp "$ORIGIN_DIR"/out/arch/arm64/boot/dts/qcom/sdmmagpie-odessa-base.dtb CosmicFresh/dtb
     cd "$ORIGIN_DIR"/CosmicFresh/ || exit
     zip -r9 "CosmicFresh-R$KV.zip" anykernel.sh META-INF tools Image.gz dtb dtbo.img
     rm -rf {Image.gz,dtb,dtbo.img}
