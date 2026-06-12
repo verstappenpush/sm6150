@@ -2099,7 +2099,7 @@ static int smb5_batt_get_prop(struct power_supply *psy,
 		if (chg->cp_use_internal_qg)
 			val->intval = chg->mmi.charger_rate;
 		else {
-			mmi_chrg_rate_check_local(chg);
+			mmi_chrg_rate_check(chg);
 			val->intval = chg->mmi.charger_rate;
 		}
 		break;
